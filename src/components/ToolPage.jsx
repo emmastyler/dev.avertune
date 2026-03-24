@@ -24,6 +24,8 @@ import {
   Home,
 } from "lucide-react";
 import { useAuth } from "../AuthContext.jsx";
+import { generateApi } from "../lib/generateApi.js";
+import { useToast } from "../lib/Toast.jsx";
 
 /* ─────────────────────────────── Custom Select ─────────────────────────── */
 function CustomSelect({ label, options, value, onChange }) {
@@ -195,128 +197,107 @@ function CopyBtn({ text }) {
 
 /* ─────────────────────────────── Chips Field ─────────────────────────── */
 function ChipsField({ field, value, onChange }) {
-  // value is a set of selected chip strings + optional custom text
   const [selected, setSelected] = useState(new Set());
-  const [custom, setCustom] = useState("");
+  const maxSelect = field.maxSelect || Infinity;
+  const atLimit = selected.size >= maxSelect;
 
   function toggleChip(chip) {
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(chip)) next.delete(chip);
-      else next.add(chip);
-      // propagate as comma-joined string
-      const all = [...next, ...(custom ? [custom] : [])].join(", ");
-      onChange(all);
+      if (next.has(chip)) {
+        next.delete(chip);
+      } else {
+        if (next.size >= maxSelect) return prev; // at limit — ignore
+        next.add(chip);
+      }
+      onChange([...next].join(", "));
       return next;
     });
   }
 
-  function handleCustomChange(e) {
-    setCustom(e.target.value);
-    const all = [...selected, ...(e.target.value ? [e.target.value] : [])].join(
-      ", ",
-    );
-    onChange(all);
+  function clearAll() {
+    setSelected(new Set());
+    onChange("");
   }
 
   return (
     <div style={{ marginBottom: "clamp(14px,2vw,20px)" }}>
-      <div
-        style={{
-          background: "var(--surface)",
-          border: "1.5px solid var(--border2)",
-          borderRadius: 16,
-          overflow: "hidden",
-          transition: "border-color .2s",
-        }}
-      >
-        <div
-          style={{
-            padding: "12px 18px 10px",
-            borderBottom: "1px solid var(--border)",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          <span
-            style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}
-          >
+      <div style={{
+        background: "var(--surface)",
+        border: "1.5px solid var(--border2)",
+        borderRadius: 16,
+        overflow: "hidden",
+        transition: "border-color .2s",
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: "12px 18px 10px",
+          borderBottom: "1px solid var(--border)",
+          display: "flex", alignItems: "center", gap: 8,
+        }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--ink-3)" }}>
             {field.label}
           </span>
-          <span
-            style={{
-              fontSize: 10.5,
-              color: "var(--ink-4)",
-              background: "var(--surface2)",
-              padding: "1px 7px",
-              borderRadius: 4,
-            }}
-          >
-            optional · pick any
+          <span style={{
+            fontSize: 10.5, color: "var(--ink-4)",
+            background: "var(--surface2)", padding: "1px 7px", borderRadius: 4,
+          }}>
+            {field.maxSelect ? `pick up to ${field.maxSelect}` : "optional · pick any"}
           </span>
+          {/* Clear button — only shown when something is selected */}
+          {selected.size > 0 && (
+            <button
+              type="button"
+              onClick={clearAll}
+              style={{
+                marginLeft: "auto", fontSize: 11.5, fontWeight: 600,
+                color: "var(--ink-3)", background: "none", border: "none",
+                cursor: "pointer", fontFamily: "inherit",
+                display: "flex", alignItems: "center", gap: 4,
+                transition: "color .15s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = "var(--ink)"}
+              onMouseLeave={e => e.currentTarget.style.color = "var(--ink-3)"}
+            >
+              <X size={11} /> Clear
+            </button>
+          )}
         </div>
+
+        {/* Chips */}
         <div style={{ padding: "14px 16px" }}>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 8,
-              marginBottom: 10,
-            }}
-          >
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
             {field.chips.map((chip) => {
               const active = selected.has(chip);
+              // dim unselected chips when at limit
+              const dimmed = atLimit && !active;
               return (
                 <button
                   key={chip}
                   type="button"
                   onClick={() => toggleChip(chip)}
+                  disabled={dimmed}
                   style={{
                     padding: "7px 14px",
                     borderRadius: 20,
                     fontSize: 13,
                     fontWeight: 500,
                     fontFamily: "inherit",
-                    cursor: "pointer",
+                    cursor: dimmed ? "not-allowed" : "pointer",
                     border: `1.5px solid ${active ? "var(--green)" : "var(--border2)"}`,
-                    background: active
-                      ? "rgba(34,197,94,0.1)"
-                      : "var(--surface2)",
+                    background: active ? "rgba(34,197,94,0.1)" : "var(--surface2)",
                     color: active ? "var(--green)" : "var(--ink-2)",
+                    opacity: dimmed ? 0.3 : 1,
                     transition: "all .15s",
+                    display: "flex", alignItems: "center", gap: 5,
                   }}
                 >
-                  {active && (
-                    <Check
-                      size={10}
-                      style={{ marginRight: 4, verticalAlign: "middle" }}
-                    />
-                  )}
+                  {active && <Check size={10} />}
                   {chip}
                 </button>
               );
             })}
           </div>
-          <input
-            type="text"
-            value={custom}
-            onChange={handleCustomChange}
-            placeholder={field.placeholder || "Or type your own context…"}
-            style={{
-              width: "100%",
-              padding: "9px 12px",
-              borderRadius: 10,
-              border: "1px solid var(--border)",
-              background: "var(--surface2)",
-              color: "var(--ink)",
-              fontSize: 13.5,
-              fontFamily: "inherit",
-              outline: "none",
-            }}
-            onFocus={(e) => (e.target.style.borderColor = "var(--green)")}
-            onBlur={(e) => (e.target.style.borderColor = "var(--border)")}
-          />
         </div>
       </div>
     </div>
@@ -910,7 +891,7 @@ const VARIANT_COLORS = {
   Brief: "var(--blue)",
 };
 
-function VariantPanel({ variants, replies, activeTab, setActiveTab, onShare }) {
+function VariantPanel({ variants, replies, activeTab, setActiveTab, onShare, insights, descriptors, recommendedVariant }) {
   return (
     <div
       style={{
@@ -954,9 +935,17 @@ function VariantPanel({ variants, replies, activeTab, setActiveTab, onShare }) {
                   : "2px solid transparent",
                 transition: "all .15s",
                 flexShrink: 0,
+                display: "flex", alignItems: "center", gap: 5,
               }}
             >
               {v}
+              {recommendedVariant === v && (
+                <span style={{
+                  fontSize: 9, fontWeight: 700, color: c,
+                  background: `${c}18`, border: `1px solid ${c}30`,
+                  padding: "1px 6px", borderRadius: 10, lineHeight: 1.4,
+                }}>★</span>
+              )}
             </button>
           );
         })}
@@ -977,16 +966,47 @@ function VariantPanel({ variants, replies, activeTab, setActiveTab, onShare }) {
             >
               {text ? (
                 <>
+                  {/* Descriptor tag */}
+                  {descriptors?.[v] && (
+                    <p style={{
+                      fontSize: 11.5, fontWeight: 600,
+                      color: "var(--ink-3)",
+                      marginBottom: 10,
+                      display: "flex", alignItems: "center", gap: 6,
+                    }}>
+                      <span style={{
+                        display: "inline-block", width: 5, height: 5,
+                        borderRadius: "50%", background: c, flexShrink: 0,
+                      }} />
+                      {descriptors[v]}
+                    </p>
+                  )}
                   <p
                     style={{
                       fontSize: 15.5,
                       color: "var(--ink)",
                       lineHeight: 1.8,
-                      marginBottom: 20,
+                      marginBottom: 14,
                     }}
                   >
                     {text}
                   </p>
+                  {/* Per-reply insight */}
+                  {insights?.[v] && (
+                    <div style={{
+                      padding: "10px 14px",
+                      background: `${c}0D`,
+                      border: `1px solid ${c}25`,
+                      borderRadius: 10,
+                      marginBottom: 14,
+                      display: "flex", gap: 8, alignItems: "flex-start",
+                    }}>
+                      <Lightbulb size={13} style={{ color: c, flexShrink: 0, marginTop: 1 }} />
+                      <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.55 }}>
+                        {insights[v]}
+                      </p>
+                    </div>
+                  )}
                   <div
                     style={{
                       display: "flex",
@@ -1037,6 +1057,159 @@ function VariantPanel({ variants, replies, activeTab, setActiveTab, onShare }) {
             </div>
           );
         })}
+    </div>
+  );
+}
+
+/* ─────────────────────────────── Decision Briefing ────────────────────── */
+function DecisionBriefing({ result, toolColor }) {
+  const briefing = result._briefing || {};
+  const receipt  = result._receipt  || {};
+
+  const riskLevel = (briefing.risk_level || "").toLowerCase();
+  const riskColor =
+    riskLevel === "high"                      ? "#ef4444" :
+    riskLevel === "moderate" || riskLevel === "medium" ? "#f59e0b" :
+    riskLevel === "low"                       ? "var(--green)" :
+    "var(--ink-3)";
+
+  // Build tone scores directly from the individual values
+  const toneScores = [
+    receipt.respect    != null ? { l: "Respect",    v: receipt.respect,    c: "var(--green)" } : null,
+    receipt.warmth     != null ? { l: "Warmth",     v: receipt.warmth,     c: "var(--blue)"  } : null,
+    receipt.confidence != null ? { l: "Confidence", v: receipt.confidence, c: "var(--teal)"  } : null,
+  ].filter(Boolean);
+
+  const whatHappening = briefing.what_is_happening || result.intent || "";
+  const strategy = briefing.recommended_strategy || result.strategy || "";
+  const riskNote = receipt.risk_note || result.tip || "";
+
+  if (!whatHappening && !strategy) return null;
+
+  return (
+    <div style={{
+      borderRadius: 20,
+      border: "1px solid var(--border2)",
+      background: "var(--surface)",
+      overflow: "hidden",
+      marginBottom: 16,
+      position: "relative",
+    }}>
+      {/* Glow backdrop */}
+      <div style={{
+        position: "absolute", top: 0, left: 0, right: 0, height: 140,
+        background: `radial-gradient(ellipse at 30% 0%, ${toolColor}12 0%, transparent 70%)`,
+        pointerEvents: "none",
+      }} />
+
+      {/* Header */}
+      <div style={{
+        padding: "16px 20px 12px",
+        borderBottom: "1px solid var(--border)",
+        display: "flex", alignItems: "center", gap: 8, position: "relative",
+      }}>
+        <div style={{
+          width: 6, height: 6, borderRadius: "50%",
+          background: toolColor,
+          boxShadow: `0 0 8px ${toolColor}`,
+          animation: "glow-pulse 2s ease infinite",
+        }} />
+        <span style={{ fontSize: 11, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.09em" }}>
+          Decision Briefing
+        </span>
+        {briefing.risk_level && (
+          <span style={{
+            marginLeft: "auto", fontSize: 11, fontWeight: 700,
+            color: riskColor, background: `${riskColor}15`,
+            padding: "3px 10px", borderRadius: 20,
+            border: `1px solid ${riskColor}30`,
+          }}>
+            {briefing.risk_level} risk
+          </span>
+        )}
+      </div>
+
+      {/* What is happening */}
+      {whatHappening && (
+        <div style={{
+          padding: "14px 20px",
+          borderBottom: "1px solid var(--border)",
+          animation: "fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both",
+        }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6 }}>
+            What is happening
+          </p>
+          <p style={{ fontSize: 14.5, color: "var(--ink)", lineHeight: 1.65, fontWeight: 500 }}>
+            {whatHappening}
+          </p>
+        </div>
+      )}
+
+      {/* Tone receipt scores */}
+      {toneScores.length > 0 && (
+        <div style={{
+          display: "flex", gap: 0,
+          borderBottom: "1px solid var(--border)",
+          overflowX: "auto",
+        }}>
+          {toneScores.map((s, i, arr) => (
+            <div key={s.l} style={{
+              flex: 1, padding: "12px 16px", minWidth: 90,
+              borderRight: i < arr.length - 1 ? "1px solid var(--border)" : "none",
+              animation: `fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) ${i * 0.07}s both`,
+            }}>
+              <p style={{ fontSize: 9.5, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.08em", marginBottom: 6 }}>
+                {s.l}
+              </p>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <p style={{ fontSize: 18, fontWeight: 800, color: s.c, lineHeight: 1 }}>
+                  {s.v}<span style={{ fontSize: 11, fontWeight: 600, color: "var(--ink-4)" }}>%</span>
+                </p>
+              </div>
+              {/* mini bar */}
+              <div style={{ height: 3, background: "var(--surface3)", borderRadius: 2, marginTop: 6, overflow: "hidden" }}>
+                <div style={{
+                  height: "100%", width: `${s.v}%`,
+                  background: s.c, borderRadius: 2,
+                  transition: "width 0.8s cubic-bezier(0.16,1,0.3,1)",
+                }} />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Recommended strategy */}
+      {strategy && (
+        <div style={{
+          padding: "14px 20px",
+          borderBottom: riskNote ? "1px solid var(--border)" : "none",
+          animation: "fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) 0.1s both",
+        }}>
+          <p style={{ fontSize: 10, fontWeight: 700, color: "var(--ink-4)", textTransform: "uppercase", letterSpacing: "0.09em", marginBottom: 6 }}>
+            Recommended Strategy
+          </p>
+          <p style={{ fontSize: 14.5, color: "var(--ink)", lineHeight: 1.65, fontWeight: 500 }}>
+            {strategy}
+          </p>
+        </div>
+      )}
+
+      {/* Risk note */}
+      {riskNote && (
+        <div style={{
+          padding: "12px 20px",
+          background: `${riskColor}08`,
+          borderTop: `1px solid ${riskColor}18`,
+          display: "flex", gap: 8, alignItems: "flex-start",
+          animation: "fadeUp 0.5s cubic-bezier(0.16,1,0.3,1) 0.15s both",
+        }}>
+          <span style={{ fontSize: 13, flexShrink: 0 }}>⚑</span>
+          <p style={{ fontSize: 13, color: "var(--ink-2)", lineHeight: 1.6 }}>
+            {riskNote}
+          </p>
+        </div>
+      )}
     </div>
   );
 }
@@ -1120,6 +1293,7 @@ const TOOL_NAV = [
 ═══════════════════════════════════════════════════════════════════════ */
 export default function ToolPage({ tool, onBack, onLogin, onTool }) {
   const { user } = useAuth();
+  const toast = useToast();
   const displayName = user?.full_name || user?.email?.split('@')[0] || 'User';
   const displayInitial = displayName[0].toUpperCase();
   const planTier = user?.plan_tier || 'free';
@@ -1128,6 +1302,7 @@ export default function ToolPage({ tool, onBack, onLogin, onTool }) {
   const [fields, setFields] = useState({});
   const [phase, setPhase] = useState("idle");
   const [result, setResult] = useState(null);
+  const [errorMessage, setErrorMessage] = useState("");
   const [activeTab, setActiveTab] = useState(tool.outputVariants?.[0] || "");
   const [showShare, setShowShare] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -1146,25 +1321,59 @@ export default function ToolPage({ tool, onBack, onLogin, onTool }) {
     if (!canSubmit() || phase === "generating") return;
     setPhase("generating");
     setResult(null);
+    setErrorMessage("");
     setActiveTab(tool.outputVariants?.[0] || "");
     try {
-      const prompt = tool.buildPrompt(fields);
-      const res = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1000,
-          messages: [{ role: "user", content: prompt }],
-        }),
-      });
-      const data = await res.json();
-      const raw = data.content?.find((b) => b.type === "text")?.text || "{}";
-      const parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+      let parsed;
+      if (tool.backendRoute && generateApi[tool.backendRoute]) {
+        // ── Backend API call ──────────────────────────────────────────────
+        parsed = await generateApi[tool.backendRoute](fields);
+        toast.success("Done! Here are your results.");
+      } else {
+        // ── Fallback: direct Anthropic call (for tools without backend route) ──
+        const prompt = tool.buildPrompt(fields);
+        const res = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 1000,
+            messages: [{ role: "user", content: prompt }],
+          }),
+        });
+        const data = await res.json();
+        const raw = data.content?.find((b) => b.type === "text")?.text || "{}";
+        parsed = JSON.parse(raw.replace(/```json|```/g, "").trim());
+        toast.success("Done! Here are your results.");
+      }
       setResult(parsed);
       setPhase("done");
-    } catch {
+    } catch (err) {
+      const status = err?.response?.status || err?.status;
+      const msg =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Something went wrong. Please try again.";
+
       setPhase("error");
+
+      if (status === 401) {
+        setErrorMessage("Your session has expired. Please sign in again.");
+        toast.error("Session expired — please sign in again.");
+      } else if (status === 403) {
+        setErrorMessage(msg || "Your trial has expired or your plan doesn't include this tool.");
+        toast.warning(msg || "Plan access denied.");
+      } else if (status === 429) {
+        setErrorMessage(msg || "You've reached your daily limit. Upgrade to continue.");
+        toast.warning(msg || "Daily limit reached.");
+      } else if (status === 504) {
+        setErrorMessage("The AI took too long to respond. Your usage was not affected — please try again.");
+        toast.error("AI timeout — try again.");
+      } else {
+        setErrorMessage(msg);
+        toast.error(msg);
+      }
     }
   }
 
@@ -1760,77 +1969,7 @@ export default function ToolPage({ tool, onBack, onLogin, onTool }) {
           )}
 
           {/* ── Second textarea (if any) ── */}
-          {optionFields
-            .filter((f) => f.type === "textarea")
-            .map((f) => (
-              <div key={f.id} style={{ marginBottom: "clamp(14px,2vw,20px)" }}>
-                <div
-                  style={{
-                    background: "var(--surface)",
-                    border: "1.5px solid var(--border2)",
-                    borderRadius: 16,
-                    overflow: "hidden",
-                    transition: "border-color .2s",
-                  }}
-                  onFocusCapture={(e) =>
-                    (e.currentTarget.style.borderColor = tool.color)
-                  }
-                  onBlurCapture={(e) =>
-                    (e.currentTarget.style.borderColor = "var(--border2)")
-                  }
-                >
-                  <div
-                    style={{
-                      padding: "12px 18px 6px",
-                      borderBottom: "1px solid var(--border)",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "var(--ink-3)",
-                      }}
-                    >
-                      {f.label}
-                    </span>
-                    {!f.required && (
-                      <span
-                        style={{
-                          fontSize: 10.5,
-                          color: "var(--ink-4)",
-                          background: "var(--surface2)",
-                          padding: "1px 7px",
-                          borderRadius: 4,
-                        }}
-                      >
-                        optional
-                      </span>
-                    )}
-                  </div>
-                  <textarea
-                    value={fields[f.id] || ""}
-                    onChange={(e) => setField(f.id, e.target.value)}
-                    placeholder={f.placeholder}
-                    rows={f.rows || 3}
-                    style={{
-                      width: "100%",
-                      padding: "14px 18px",
-                      fontSize: 14,
-                      lineHeight: 1.65,
-                      color: "var(--ink)",
-                      background: "transparent",
-                      border: "none",
-                      caretColor: tool.color,
-                      fontFamily: "inherit",
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
+          {/* Optional textareas hidden — thread_context and context are sent silently */}
 
           {/* ── Chips fields ── */}
           {optionFields
@@ -1849,7 +1988,7 @@ export default function ToolPage({ tool, onBack, onLogin, onTool }) {
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: `repeat(auto-fit, minmax(min(100%,${Math.min(220, Math.floor(100 / optionFields.filter((f) => f.type === "select").length))}px),1fr))`,
+                gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 200px), 1fr))",
                 gap: 12,
                 marginBottom: "clamp(18px,2.5vw,28px)",
               }}
@@ -2014,24 +2153,38 @@ export default function ToolPage({ tool, onBack, onLogin, onTool }) {
           {phase === "error" && (
             <div
               style={{
-                padding: "20px",
+                padding: "20px 24px",
                 background: "rgba(239,68,68,0.06)",
                 border: "1px solid rgba(239,68,68,0.2)",
                 borderRadius: 14,
-                textAlign: "center",
                 marginBottom: 20,
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 12,
               }}
             >
-              <p style={{ color: "#ef4444", fontWeight: 600, marginBottom: 8 }}>
-                Something went wrong. Please try again.
-              </p>
-              <button
-                onClick={() => setPhase("idle")}
-                className="btn-ghost"
-                style={{ padding: "8px 20px", borderRadius: 8, fontSize: 13 }}
-              >
-                Try again
-              </button>
+              <div style={{
+                width: 34, height: 34, borderRadius: 10, flexShrink: 0,
+                background: "rgba(239,68,68,0.1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                <AlertTriangle size={16} color="#ef4444" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <p style={{ color: "#ef4444", fontWeight: 600, marginBottom: 4, fontSize: 14 }}>
+                  {errorMessage || "Something went wrong. Please try again."}
+                </p>
+                <button
+                  onClick={() => { setPhase("idle"); setErrorMessage(""); }}
+                  style={{
+                    fontSize: 13, fontWeight: 600, color: "var(--ink-3)",
+                    background: "none", border: "none", cursor: "pointer",
+                    padding: 0, fontFamily: "inherit",
+                  }}
+                >
+                  Try again →
+                </button>
+              </div>
             </div>
           )}
 
@@ -2042,6 +2195,11 @@ export default function ToolPage({ tool, onBack, onLogin, onTool }) {
                 animation: "fadeUp 0.4s cubic-bezier(0.16,1,0.3,1) both",
               }}
             >
+              {/* Decision Briefing — shown for backend-powered tools */}
+              {tool.backendRoute && (result._briefing || result._receipt) && (
+                <DecisionBriefing result={result} toolColor={tool.color} />
+              )}
+
               {/* Insight rows */}
               {insightRows.length > 0 && (
                 <div
@@ -2230,8 +2388,11 @@ export default function ToolPage({ tool, onBack, onLogin, onTool }) {
                     variants={tool.outputVariants}
                     replies={result.replies}
                     activeTab={activeTab}
-                    setActiveTab={setActiveTab}
+                    setActiveTab={(v) => setActiveTab(v)}
                     onShare={() => setShowShare(true)}
+                    insights={result._replyInsights}
+                    descriptors={result._replyDescriptors}
+                    recommendedVariant={result._recommendedVariant}
                   />
                 </div>
               )}

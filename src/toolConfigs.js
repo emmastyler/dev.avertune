@@ -17,14 +17,7 @@ export const TOOL_CONFIGS = {
         required: true,
         rows: 5,
       },
-      {
-        id: 'thread_context',
-        label: 'Thread context',
-        type: 'textarea',
-        placeholder: 'Any prior context or background to this conversation… (optional)',
-        required: false,
-        rows: 2,
-      },
+
       {
         id: 'context',
         label: 'Context chips',
@@ -134,14 +127,7 @@ export const TOOL_CONFIGS = {
         options: ['No history', 'Minor tension', 'Ongoing conflict', 'Recent argument', 'Reconciling'],
         default: 'No history',
       },
-      {
-        id: 'context',
-        label: 'Extra context',
-        type: 'textarea',
-        placeholder: 'Any background info that might affect tone… (optional)',
-        required: false,
-        rows: 2,
-      },
+
     ],
     outputVariants: null,
     buildPrompt: (f) => `You are an expert in emotional communication and subtext analysis. Deeply analyze this message.\n\nMessage: "${f.message}"\nRelationship to sender: ${f.relationship || 'Colleague'}\nPrior tension: ${f.history || 'No history'}\n${f.context ? `Context: ${f.context}` : ''}\n\nReturn ONLY valid JSON:\n{\n  "primary_tone": "<main tone in 2-3 words>",\n  "secondary_tone": "<underlying tone in 2-3 words>",\n  "intent": "<what the sender actually wants>",\n  "subtext": "<what they are NOT saying but implying>",\n  "risk_level": "<Low / Medium / High>",\n  "risk_reason": "<why this risk level>",\n  "emotional_signals": ["<signal 1>", "<signal 2>", "<signal 3>"],\n  "what_not_to_do": "<biggest mistake to avoid when replying>",\n  "recommended_approach": "<how to approach the reply>",\n  "urgency": "<Low / Medium / High>",\n  "urgency_reason": "<why>"\n}`,
@@ -194,14 +180,7 @@ export const TOOL_CONFIGS = {
         options: ['Email', 'SMS / Text', 'WhatsApp', 'LinkedIn', 'Slack'],
         default: 'Email',
       },
-      {
-        id: 'context',
-        label: 'Extra context',
-        type: 'textarea',
-        placeholder: 'Any background that helps… (optional)',
-        required: false,
-        rows: 2,
-      },
+
     ],
     outputVariants: ['Improved', 'Concise', 'Confident', 'Original+'],
     buildPrompt: (f) => `You are an expert communication editor. Improve the user's draft reply.\n\nOriginal message they received: "${f.original}"\nTheir draft reply: "${f.draft}"\nGoal: ${f.goal || 'Sound more professional'}\nWhat to keep: ${f.keep || 'Keep the overall message'}\n${f.context ? `Context: ${f.context}` : ''}\n\nReturn ONLY valid JSON:\n{\n  "diagnosis": "<what's weak or off about the draft in 2 sentences>",\n  "key_improvements": ["<improvement 1>", "<improvement 2>", "<improvement 3>"],\n  "replies": {\n    "Improved": "<best improved version>",\n    "Concise": "<shorter, punchy version>",\n    "Confident": "<more assertive, confident version>",\n    "Original+": "<their original with minimal but important edits>"\n  },\n  "tip": "<one sentence on what made this draft weak and how to avoid it next time>"\n}`,

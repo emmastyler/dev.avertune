@@ -3,8 +3,12 @@ import { api } from './apiClient'
 // ── Field mappers ─────────────────────────────────────────────────────────────
 
 function buildRepliesRequest(fields) {
-  // pack_scenario is { packId, packLabel, scenarioId, scenarioLabel }
+  // pack_scenario { packId, packLabel, scenarioId, scenarioLabel }
+  // scenarioLabel goes into context_chips; pack stays as its own field
   const ps = fields.pack_scenario || {}
+  const chips = parseChips(fields.context)
+  if (ps.scenarioLabel) chips.push(ps.scenarioLabel)
+
   return {
     message:          fields.message                        || '',
     thread_context:   '',
@@ -13,9 +17,8 @@ function buildRepliesRequest(fields) {
     tone:             (fields.tone_pref || 'Professional').toLowerCase(),
     goal:             fields.goal                           || '',
     audience:         fields.audience                       || '',
-    context_chips:    parseChips(fields.context),
+    context_chips:    chips,
     pack:             ps.packId                             || '',
-    pack_scenario:    ps.scenarioId                         || '',
   }
 }
 

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../AuthContext.jsx";
+import { useCheckout } from "../lib/useSubscription";
 import { useToast } from "../lib/Toast.jsx";
 import {
   ArrowLeft,
@@ -460,7 +461,23 @@ function PlanCard({ plan, billing, onCheckout, checkingOut }) {
           e.currentTarget.style.transform = "translateY(0)";
         }}
       >
-        {checkingOut ? "Redirecting…" : plan.cta}
+        {checkingOut ? (
+          <>
+            <div
+              style={{
+                width: 14,
+                height: 14,
+                border: "2px solid rgba(0,0,0,0.25)",
+                borderTopColor: "#000",
+                borderRadius: "50%",
+                animation: "spin .7s linear infinite",
+              }}
+            />
+            Redirecting...
+          </>
+        ) : (
+          plan.cta
+        )}
       </button>
     </div>
   );
@@ -540,10 +557,13 @@ export default function PricingPage() {
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const toast = useToast();
-  const onBack = () => navigate(-1);
+  const checkoutMutation = useCheckout();
   const [billing, setBilling] = useState("monthly");
+  const [activePlanId, setActivePlanId] = useState(null);
 
-  function handleCheckout(plan, billingPeriod) {
+  const onBack = () => navigate(-1);
+
+  async function handleCheckout(plan, billingPeriod) {
     if (!isAuthenticated) {
       navigate("/signup");
       return;
@@ -552,13 +572,25 @@ export default function PricingPage() {
       navigate("/dashboard");
       return;
     }
-    // Navigate to checkout page with query params
-    navigate(`/checkout?plan=${plan.id}&billing=${billingPeriod}`);
+
+    setActivePlanId(plan.id);
+    try {
+      await checkoutMutation.mutateAsync({
+        plan: plan.id,
+        billing_period: billingPeriod,
+      });
+      // The mutation will redirect to the payment URL
+    } catch (err) {
+      toast.error(err.message || "Checkout failed");
+    } finally {
+      setActivePlanId(null);
+    }
   }
+
+  const checkingOut = (planId) => activePlanId === planId;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)" }}>
-      {/* Header */}
       <header
         style={{
           position: "sticky",
@@ -752,7 +784,7 @@ export default function PricingPage() {
               plan={plan}
               billing={billing}
               onCheckout={handleCheckout}
-              checkingOut={false}
+              checkingOut={checkingOut(plan.id)}
             />
           ))}
         </div>

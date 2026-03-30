@@ -5,14 +5,13 @@ import { useAuth } from "../AuthContext";
 export const SUB_KEYS = {
   plans: ["subscription", "plans"],
   me: ["subscription", "me"],
-  gateways: ["subscription", "gateways"],
 };
 
 export function usePlans() {
   return useQuery({
     queryKey: SUB_KEYS.plans,
     queryFn: subscriptionApi.getPlans,
-    staleTime: 10 * 60 * 1000, // 10 min
+    staleTime: 10 * 60 * 1000,
     retry: false,
   });
 }
@@ -33,8 +32,12 @@ export function useCheckout() {
   return useMutation({
     mutationFn: subscriptionApi.checkout,
     onSuccess: (data) => {
-      if (data?.checkout_url) {
-        window.location.href = data.checkout_url;
+      console.log("Checkout response:", data);
+      const checkoutUrl = data?.url;
+      if (checkoutUrl) {
+        window.location.replace(checkoutUrl); // use replace for immediate redirect
+      } else {
+        throw new Error("No checkout URL returned");
       }
     },
   });
@@ -45,8 +48,9 @@ export function usePortal() {
   return useMutation({
     mutationFn: subscriptionApi.getPortal,
     onSuccess: (data) => {
-      if (data?.url) {
-        window.open(data.url, "_blank");
+      const portalUrl = data?.url;
+      if (portalUrl) {
+        window.open(portalUrl, "_blank");
       } else {
         throw new Error("No portal URL returned");
       }
@@ -68,15 +72,6 @@ export function useCancel() {
       qc.invalidateQueries({ queryKey: SUB_KEYS.me });
       qc.invalidateQueries({ queryKey: ["auth", "me"] });
     },
-  });
-}
-
-export function usePaymentGateways() {
-  return useQuery({
-    queryKey: SUB_KEYS.gateways,
-    queryFn: subscriptionApi.getPaymentGateways,
-    staleTime: 10 * 60 * 1000,
-    retry: false,
   });
 }
 

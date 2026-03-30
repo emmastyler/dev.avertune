@@ -11,11 +11,10 @@ export const subscriptionApi = {
     return data;
   },
 
-  checkout: async ({ plan, billing_period, payment_gateway, ref_id }) => {
+  checkout: async ({ plan, billing_period, ref_id }) => {
     const { data } = await api.post("/subscription/checkout", {
       plan,
       billing_period,
-      payment_gateway,
       ...(ref_id ? { ref_id } : {}),
     });
     return data;
@@ -30,11 +29,6 @@ export const subscriptionApi = {
     const { data } = await api.delete("/subscription/cancel", {
       data: { reason: reason || "" },
     });
-    return data;
-  },
-
-  getPaymentGateways: async () => {
-    const { data } = await api.get("/subscription/gateways");
     return data;
   },
 };

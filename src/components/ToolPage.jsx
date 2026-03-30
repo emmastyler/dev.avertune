@@ -30,7 +30,7 @@ import { useNavigate } from "react-router-dom";
 import { generateApi } from "../lib/generateApi.js";
 import { PACKS } from "../lib/packData.js";
 import { useToast } from "../lib/Toast.jsx";
-import Sidebar from "./components/Sidebar.jsx";
+import Sidebar from "./Sidebar.jsx";
 
 /* ─────────────────────────────── Custom Select ─────────────────────────── */
 function CustomSelect({ label, options, value, onChange, placeholder }) {

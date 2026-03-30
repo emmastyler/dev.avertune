@@ -29,7 +29,6 @@ import {
 import Dashboard from "./components/Dashboard.jsx";
 import ToolPage from "./components/ToolPage.jsx";
 import PricingPage from "./components/PricingPage.jsx";
-import CheckoutPage from "./components/CheckoutPage.jsx";
 import { useState, useEffect } from "react";
 import { useToast } from "./lib/Toast.jsx";
 
@@ -159,7 +158,6 @@ export default function App() {
       {/* Public */}
       <Route path="/" element={<Landing />} />
       <Route path="/pricing" element={<PricingPage />} />
-      <Route path="/checkout" element={<CheckoutPage />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/signup" element={<SignupWrapper />} />
       <Route path="/forgot-password" element={<ForgotWrapper />} />
